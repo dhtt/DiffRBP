@@ -1,10 +1,7 @@
-library(DESeq2)
-
-start_time <- Sys.time()
+library("DESeq2", quietly = TRUE)
 library("stringr", quietly = TRUE)
 library("data.table", quietly = TRUE)
 library("dplyr", quietly = TRUE)
-library("DEXSeq", quietly = TRUE)
 library("optparse", quietly = TRUE)
 library("ggplot2", quietly = TRUE)
 library("ggpubr", quietly = TRUE)
@@ -54,16 +51,18 @@ result_dir <- paste(c(result_dir[1:(length(result_dir) - 1)], 'normalized_count'
 print(result_dir)
 
 # Write logs
-log_name <- file(paste('code/logs', epi1_epi2, "log", sep='.'), sep='/'), open = "wt")
+dir.create(file.path('code', 'logs', 'deseq2'), showWarnings = FALSE)
+log_name <- file(paste('code/logs/deseq2', epi1_epi2, "log", sep='.'), open = "wt")
 sink(log_name, type = c("output", "message"))
 
 cat(paste("---> Working folder: ", opt$count_folder, sep=''), append = TRUE)
 cat("\n---> Count files: ", append = TRUE)
 cat(basename(count_files), append = TRUE)
-cat(paste("\n---> Reference genome: ", gtf_files, sep=''), append = TRUE)
 
 
-################ DESEQ2 ANALYSIS ################ 
+################ DESEQ2 ANALYSIS ################ start_time <- Sys.time()
+start_time <- Sys.time()
+
 counts <- lapply(count_files, function(x) data.frame(fread(x, sep='\t', header = TRUE))[[2]])
 count_data <- do.call(cbind, counts)
 colnames(count_data) = paste(file_names$V1, file_names$V2, sep="_")
@@ -79,47 +78,37 @@ metadata <- data.frame(
 
 # Create a DESeq2 object
 dds <- DESeqDataSetFromMatrix(
-    count_data = count_data,
+    countData = count_data,
     colData = metadata,
     design = ~ tissue
     )
 
 # Perform normalization and differential expression analysis
 dds_normed <- DESeq(dds)
-dir.create(file.path(result_dir, 'DESeq2_RDS'), showWarnings = FALSE)
-saveRDS(dds_normed, file = file.path(result_dir, 'DESeq2_RDS', epi1_epi2, "RDS", sep='.'))
+dir.create(file.path(result_dir, 'deseq2', 'RDS'), showWarnings = FALSE)
+saveRDS(dds_normed, file = file.path(result_dir, 'deseq2', 'RDS', paste(epi1_epi2, "RDS", sep='.')))
 
 # Save normalized counts
 dds_result = results(dds_normed)
 normed_data = DESeq2::counts(dds_normed, normalized = TRUE)
 vsd = vst(dds)
-dir.create(file.path(result_dir, epi1_epi2), showWarnings = FALSE)
+dir.create(file.path(result_dir, 'deseq2', epi1_epi2), showWarnings = FALSE)
 
 for (i in 1:ncol(normed_data)){
     fwrite((data.frame(normed_data[, i])), 
            row.names = T, sep = '\t', col.names = F,
-           file = file.path(result_dir, epi1_epi2, paste(colnames(normed_data)[i], ".txt")))
+           file = file.path(result_dir, 'deseq2', epi1_epi2, paste(colnames(normed_data)[i], ".txt", sep='')))
 }
 dds_result %>% 
     as.data.frame() %>%
     dplyr::filter(padj < 0.05 & !is.na(padj)) %>%
     dplyr::arrange(log2FoldChange)
 
-dds_result[grep('ENST00000264705', rownames(dds)), ]
-
-################ RESULTS ANALYSIS ################ 
-# PCA plot for transformed counts 
-png(file.path(result_dir, paste(epi_id1, '_', epi_id2, '_PCA.png', sep='')), width = 6, height = 4, unit = 'in', res = 200)
-plotPCA(
-    vsd, intgroup="tissue", ntop=500) +
-    theme_bw() +
-    geom_point(size = 4, alpha = 0.8) +
-    ggtitle(label="Principal Component Analysis (PCA)", subtitle="Top 500 most variable genes")
-dev.off()
+################ RESULTS ANALYSIS ################
 
 #### MAplot for pair comparison with transformed counts ####
 make_MAplot <- function(deseq2_result){
-    plot = ggmaplot(deseq2_result, 
+    ggmaplot(deseq2_result, 
                     fdr = 0.05, fc = 1, size = 0.5, top = 0,
                     xlab = expression(bold("Log"["2"] ~ "mean expression")),
                     ylab = expression(bold("Log"["2"] ~ "fold change")),
@@ -134,12 +123,7 @@ make_MAplot <- function(deseq2_result){
             panel.grid = element_blank()
         ) + 
         guides(colour = guide_legend(override.aes = list(size=3, alpha=0.8)))
-    return(plot)
 }
-
-png(file.path(result_dir, paste(epi_id1, '_', epi_id2, '_MA.png', sep='')), width = 6, height = 4, unit = 'in', res = 200)
-make_MAplot(dds_result)
-dev.off()
 
 #### Heatmap for pair comparison with transformed counts ####
 make_heatmap <- function(deseq2_result){
@@ -156,12 +140,36 @@ make_heatmap <- function(deseq2_result){
     # png(paste("analyzed_result/heatmap_deseq2_toppadj_", comparison_type, ".png", sep=''), width = 7, height = 8, unit = 'in', res = 200)
     plot = pheatmap(
         heat, cluster_rows=TRUE, show_rownames=FALSE, cluster_cols=FALSE
-        )
+    )
     return(plot)
 }
 
-png(file.path(result_dir, paste(epi_id1, '_', epi_id2, '_heatmap.png', sep='')), width = 6, height = 4, unit = 'in', res = 200)
-make_heatmap(dds_result)
+plots = as.list(c(NA, NA, NA))
+names(plots) = c('PCA', 'MA', 'heatmap')
+for (i in 1:length(plots)){
+    type = names(plots)[i]
+    dir.create(file.path(result_dir, 'deseq2', plot_type), showWarnings = FALSE)
+    
+    if (type == 'PCA') {
+        plots[[i]] = plotPCA(
+            vsd, intgroup="tissue", ntop=500) + theme_bw() +
+            geom_point(size = 4, alpha = 0.8) +
+            ggtitle(label="Principal Component Analysis (PCA)", subtitle="Top 500 most variable genes")
+        
+    } else if (type == 'MA'){
+        plots[[i]] = make_MAplot(dds_result)
+    } else if (type == 'heatmap'){
+        plots[[i]] = make_heatmap(dds_result)
+    }
+}
+png(file.path(result_dir, 'deseq2', names(plots)[1], paste(epi1_epi2, '.png', sep='')), width = 8, height = 8, unit = 'in', res = 200)
+plots[[1]]
+dev.off()
+png(file.path(result_dir, 'deseq2', names(plots)[2], paste(epi1_epi2, '.png', sep='')), width = 8, height = 8, unit = 'in', res = 200)
+plots[[2]]
+dev.off()
+png(file.path(result_dir, 'deseq2', names(plots)[3], paste(epi1_epi2, '.png', sep='')), width = 8, height = 8, unit = 'in', res = 200)
+plots[[3]]
 dev.off()
 
 
