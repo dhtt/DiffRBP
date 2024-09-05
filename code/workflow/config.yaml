@@ -1,0 +1,3 @@
+epispliced_dir: "../data/Epispliced"
+bam_dir: "../data/Epispliced/raw_data/{sample}.bam"
+refgen_path: "../data/refgen/refgen.no_pseudogene.gtf"

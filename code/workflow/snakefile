@@ -1,0 +1,22 @@
+configfile: "workflow/config.yaml"
+
+MRNA_DATA =  config['epispliced_dir']
+BAM_DIR = config['bam_dir']
+REFGEN_PATH = config['refgen_path']
+BAM_FILES, = glob_wildcards(BAM_DIR)
+print(BAM_FILES)
+
+rule all:
+    input:
+        expand("{MRNA_DATA}/htseq_count/{sample}.txt", MRNA_DATA=MRNA_DATA, sample=BAM_FILES)
+    log:
+        "logs/pipeline.log"
+        
+rule htseq_count:
+	input:
+		refgen=REFGEN_PATH,
+		bam_file="{MRNA_DATA}/raw_data/{sample}.bam"
+	output:
+		count_file="{MRNA_DATA}/htseq_count/{sample}.txt"
+	shell:
+		"htseq-count --format=bam --idattr=transcript_id {input.bam_file} {input.refgen} > {output.count_file}"
