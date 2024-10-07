@@ -1,6 +1,17 @@
-PPIXpress_dir=../data/PPIXpress/INTACT_PPI
-PPICompare_dir=../data/PPICompare/INTACT_PPI
-renamed_file_dir=$PPIXpress_dir/ResultFiles_renamed
+
+# Parse arguments for input path, output path
+while getopts 'x:c:' flag
+do 
+    case "${flag}" in 
+        (x) PPIXpress_dir=${OPTARG};; # ../data/PPIXpress/INTACT_PPI/ResultFiles_renamed
+        (c) PPICompare_dir=${OPTARG};; # ../data/PPICompare/INTACT_PPI
+        (:) 
+            case ${OPTARG} in 
+                (x) exit 9999;;
+                (c) exit 9999;;
+            esac;;
+    esac
+done
 
 mkdir -p $PPICompare_dir
 
@@ -10,16 +21,18 @@ get_ID (){
     echo $ID
 }
 
-for file1 in `ls $renamed_file_dir`; 
+for file1 in `ls $PPIXpress_dir`; 
 do (
-    for file2 in `ls $renamed_file_dir`; 
+    for file2 in `ls $PPIXpress_dir`; 
     do (
         if [[ $file1 < $file2 ]]; then (
             ID1=`get_ID $file1`
             ID2=`get_ID $file2`
-            java -jar ../../tools/PPICompare/PPICompare.jar $renamed_file_dir/$file1 $renamed_file_dir/$file2 $PPICompare_dir/${ID1}_${ID2}
+
+            echo $PPIXpress_dir/$file1 $PPIXpress_dir/$file2 $PPICompare_dir/${ID1}_${ID2}
+            java -jar ../tools/PPICompare/PPICompare.jar -fdr=1 $PPIXpress_dir/$file1 $PPIXpress_dir/$file2 $PPICompare_dir/${ID1}_${ID2}
         ) fi
-    ) &
+    ) 
     done
     ) 
 done

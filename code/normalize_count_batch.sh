@@ -15,7 +15,7 @@ do (
             ID2=`get_ID $file2`
             Rscript code/normalize_count.R -f $count_dir -a $ID1 -b $ID2 -n 2
         ) fi
-    ) &
+    ) 
     done
     ) 
 done
