@@ -1,0 +1,25 @@
+import pandas as pd
+
+configfile: "workflow/config.yaml"
+configfile: "workflow/PPIXpress_config.yaml"
+
+PPIXpress_DIR =  config['PPIXpress_dir']
+DATASET_NAME = config['dataset_name']
+SAMPLE_df = pd.read_csv(SAMPLE_NAME, sep="\t", header=0)
+
+rule all:
+	input:
+		expand("{MRNA_DATA}/htseq_count/{COUNT_FILE}.txt", MRNA_DATA=MRNA_DATA, COUNT_FILE=SAMPLE_df.SAMPLE_ID.tolist())
+	log:
+		"logs/pipeline.log"
+
+# rule PPIXpress:
+# 	input:
+# 		refgen=REFGEN_PATH,
+# 		bam_file=lambda w: '%s/raw_data/%s.bam' % (w.MRNA_DATA, SAMPLE_df.ENCODE_ID[SAMPLE_df.SAMPLE_ID == w.COUNT_FILE].tolist()[0])
+# 	output:
+# 		"{MRNA_DATA}/htseq_count/{COUNT_FILE}.txt"
+# 	run:
+# 		shell("echo {input.bam_file} {input.refgen} > {output}")
+# 		# htseq-count --format=bam --idattr=transcript_id {input.bam_file} {input.refgen} > {output}
+  
