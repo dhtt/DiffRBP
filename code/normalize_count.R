@@ -45,9 +45,12 @@ epi_id2 <- opt$epigenome2
 epi1_epi2 <- paste(epi_id1, '_', epi_id2, sep='')
 pair <- paste(paste("^", epi_id1, ".*.txt$", sep = ""), paste("^", epi_id2, ".*.txt$", sep = ""), sep = "|")
 count_files <- list.files(opt$count_folder, pattern = pair, full.names = TRUE)
+print(count_files)
 file_names <- as.data.table(str_split_fixed(basename(count_files), "\\_|\\.", 3))
 result_dir <- strsplit(opt$count_folder, "/")[[1]]
 result_dir <- paste(c(result_dir[1:(length(result_dir) - 1)], 'normalized_count'), collapse = "/")
+dir.create(result_dir, showWarnings = FALSE)
+dir.create(file.path(result_dir, 'deseq2'), showWarnings = FALSE)
 print(result_dir)
 
 # Write logs
@@ -65,14 +68,17 @@ start_time <- Sys.time()
 
 counts <- lapply(count_files, function(x) data.frame(fread(x, sep='\t', header = TRUE))[[2]])
 count_data <- do.call(cbind, counts)
-colnames(count_data) = paste(file_names$V1, file_names$V2, sep="_")
+colnames(count_data) = paste(file_names$V1, file_names$V2, file_names$V3, sep="_")
 rownames(count_data) = fread(count_files[1], sep='\t', header = TRUE)[[1]]
 count_data = count_data[grep('_', rownames(count_data), invert = T), ]
 
 # Create a metadata table with sample information
 metadata <- data.frame(
-    tissue = c(file_names$V1), 
-    replicate = c(file_names$V2), 
+    group = c(file_names$V1), 
+    tissue = c(file_names$V2), 
+    replicate = c(file_names$V3), 
+    # tissue = c(file_names$V1), 
+    # replicate = c(file_names$V2), 
     row.names = colnames(count_data)
     )
 
@@ -80,11 +86,11 @@ metadata <- data.frame(
 dds <- DESeqDataSetFromMatrix(
     countData = count_data,
     colData = metadata,
-    design = ~ tissue
+    design = ~ group # change to tissue if compare single tissues
     )
 
 # Perform normalization and differential expression analysis
-dds_normed <- DESeq(dds)
+dds_normed <- DESeq(dds, fitType = "local")
 dir.create(file.path(result_dir, 'deseq2', 'RDS'), showWarnings = FALSE)
 saveRDS(dds_normed, file = file.path(result_dir, 'deseq2', 'RDS', paste(epi1_epi2, "RDS", sep='.')))
 
@@ -101,8 +107,14 @@ for (i in 1:ncol(normed_data)){
 }
 dds_result %>% 
     as.data.frame() %>%
-    dplyr::filter(padj < 0.05 & !is.na(padj)) %>%
+    dplyr::filter(padj < 0.05 & !is.na(padj) & abs(log2FoldChange) >= 1) %>%
     dplyr::arrange(log2FoldChange)
+
+saveRDS(rownames(dds_result[abs(dds_result$log2FoldChange) >= 1 & dds_result$padj < 0.05 & !is.na(dds_result$padj), ]), 
+        file = file.path(result_dir, 'deseq2', paste(epi1_epi2, "sig_genes.RDS", sep='.')))
+fwrite(as.list(rownames(dds_result)), 
+       file = file.path(result_dir, 'deseq2', paste(epi1_epi2, "sig_genes.txt")), quote=F, sep='\n')
+
 
 ################ RESULTS ANALYSIS ################
 
@@ -148,7 +160,7 @@ plots = as.list(c(NA, NA, NA))
 names(plots) = c('PCA', 'MA', 'heatmap')
 for (i in 1:length(plots)){
     type = names(plots)[i]
-    dir.create(file.path(result_dir, 'deseq2', plot_type), showWarnings = FALSE)
+    dir.create(file.path(result_dir, 'deseq2', type), showWarnings = FALSE)
     
     if (type == 'PCA') {
         plots[[i]] = plotPCA(
@@ -171,7 +183,9 @@ dev.off()
 png(file.path(result_dir, 'deseq2', names(plots)[3], paste(epi1_epi2, '.png', sep='')), width = 8, height = 8, unit = 'in', res = 200)
 plots[[3]]
 dev.off()
-
+png(file.path(result_dir, 'deseq2', paste(epi1_epi2, '_local.png', sep='')), width = 8, height = 8, unit = 'in', res = 200)
+plotDispEsts(dds_normed, main= "dispEst: local")
+dev.off()
 
 ################ FINISH ################ 
 cat("\n===> FINISHED!", append = TRUE)

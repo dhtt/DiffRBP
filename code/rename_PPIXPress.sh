@@ -1,4 +1,4 @@
-result_dir=../data/PPIXpress/INTACT_PPI
+result_dir=../data/PPIXpress/INTACT_all_options
 renamed_file_dir=$result_dir/ResultFiles_renamed
 mkdir -p $renamed_file_dir
 
