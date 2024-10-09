@@ -1,25 +1,79 @@
 import pandas as pd
+import os
 
 configfile: "workflow/config.yaml"
-configfile: "workflow/PPIXpress_config.yaml"
 
-PPIXpress_DIR =  config['PPIXpress_dir']
-DATASET_NAME = config['dataset_name']
+DATA_DIR = config['data_dir']
+TEMP_DIR = config['temp_dir']
+MRNA_DATA =  config['epispliced_dir']
+REFGEN_PATH = config['refgen_path']
+SAMPLE_NAME = config['sample_name']
 SAMPLE_df = pd.read_csv(SAMPLE_NAME, sep="\t", header=0)
+TISSUE_LIST = set([x.split("_")[0] for x in SAMPLE_df.SAMPLE_ID.tolist()])
+
+PPIXPRESS_JAR =  config['PPIXpress_jar']
+PPIXPRESS_DIR =  config['PPIXpress_dir']
+PPIXPRESS_OPTIONS = config['PPIXpress_options']
+PPIXPRESS_REF_PPIN = config['PPIXpress_reference_PPIN']
+
+def get_tissues(matching_files):
+	matching_df = pd.read_csv(matching_files, sep=" ", header=None)
+	if "-d" in PPIXPRESS_OPTIONS:
+		if "-m" in PPIXPRESS_OPTIONS:
+			matching_df.columns = ["count_file", "ppin_file", "ddin_file", "major_transcripts_file"]
+		else:
+			matching_df.columns = ["count_file", "ppin_file", "ddin_file"]
+	else:
+		matching_df.columns = ["count_file", "ppin_file"]
+    
+	matching_df['tissue'] = matching_df['count_file'].apply(lambda x: x.split("/")[-1].split("_")[0])
+	return matching_df
+
+def move_file(old_dir: str, new_dir: str, *args):
+	if not os.path.exists(new_dir):
+		shell(f"mkdir -p {new_dir}")
+	for file in args:
+		if os.path.exists(f"{old_dir}/{file}"):
+			shell(f"cp {old_dir}/{file} {new_dir}")
+
 
 rule all:
 	input:
-		expand("{MRNA_DATA}/htseq_count/{COUNT_FILE}.txt", MRNA_DATA=MRNA_DATA, COUNT_FILE=SAMPLE_df.SAMPLE_ID.tolist())
+		grouped_PPIN=expand(PPIXPRESS_DIR + "/{TISSUE_LIST}", TISSUE_LIST=TISSUE_LIST)
 	log:
 		"logs/pipeline.log"
 
-# rule PPIXpress:
-# 	input:
-# 		refgen=REFGEN_PATH,
-# 		bam_file=lambda w: '%s/raw_data/%s.bam' % (w.MRNA_DATA, SAMPLE_df.ENCODE_ID[SAMPLE_df.SAMPLE_ID == w.COUNT_FILE].tolist()[0])
-# 	output:
-# 		"{MRNA_DATA}/htseq_count/{COUNT_FILE}.txt"
-# 	run:
-# 		shell("echo {input.bam_file} {input.refgen} > {output}")
-# 		# htseq-count --format=bam --idattr=transcript_id {input.bam_file} {input.refgen} > {output}
+
+rule group_PPIN:
+	input:
+		matching_files=PPIXPRESS_DIR + "/temp/matching_files.txt",
+		temp_dir=PPIXPRESS_DIR + "/temp"
+	output:
+		grouped_PPIN=directory(PPIXPRESS_DIR + "/{TISSUE_LIST}")
+	run:
+		PPIN_files = get_tissues(input.matching_files)
+		PPIN_files.apply(lambda x: move_file(input.temp_dir, PPIXPRESS_DIR + "/" + x["tissue"], x["ppin_file"], x["ddin_file"], x["major_transcripts_file"]), axis=1)
+		move_file(input.temp_dir, PPIXPRESS_DIR, "matching_files.txt")
+
+rule PPIXpress:
+	input:
+		expression_files=expand("{MRNA_DATA}/htseq_count/{COUNT_FILE}.txt", MRNA_DATA=MRNA_DATA, COUNT_FILE=SAMPLE_df.SAMPLE_ID.tolist()),
+		reference_ppin=PPIXPRESS_REF_PPIN
+	output:
+		temp_dir=temp(directory(PPIXPRESS_DIR + "/temp")),
+		matching_files=PPIXPRESS_DIR + "/temp/matching_files.txt"
+	run:
+		if not os.path.exists(output.temp_dir):
+			os.mkdir(output.temp_dir)
+		log_file = os.path.join(PPIXPRESS_DIR, "log.txt")
+		shell(f"java -jar {PPIXPRESS_JAR} {PPIXPRESS_OPTIONS} {input.reference_ppin} {output.temp_dir} {input.expression_files}")
+
   
+rule htseq_count:
+	input:
+		refgen=REFGEN_PATH,
+		bam_file=lambda w: MRNA_DATA + "/raw_data/%s.bam" % (SAMPLE_df.ENCODE_ID[SAMPLE_df.SAMPLE_ID == w.COUNT_FILE].tolist()[0])
+	output:
+		MRNA_DATA + "/htseq_count/{COUNT_FILE}.txt"
+	run:
+		shell(f"htseq-count --format=bam --idattr=transcript_id {input.bam_file} {input.refgen} > {output}")
