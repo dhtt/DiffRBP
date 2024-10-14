@@ -1,0 +1,10 @@
+data_dir: "../data"
+epispliced_dir: "../data/Epispliced"
+bam_dir: "../data/Epispliced/raw_data/{sample}.bam"
+refgen_path: "../data/refgen/refgen.no_pseudogene.gtf"
+sample_name: "../data/Epispliced/raw_data/sample_name.csv"
+
+PPIXpress_jar: "../../tools/PPIXpress_1.23/PPIXpress.jar"
+PPIXpress_result_path: "../data/RBP2GO_snakemake/PPIXpress"
+PPIXpress_options: "-tp=0.9 -u -elm -n -d -m -w -u"
+PPIXpress_reference_PPIN: "../data/RBP2GO/RBP_interactions.sif"

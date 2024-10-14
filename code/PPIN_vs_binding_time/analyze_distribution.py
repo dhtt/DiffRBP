@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import pandas as pd
 import numpy as np 
 
@@ -12,7 +14,7 @@ def get_cluster_distance(annotated_PPIN: pd.DataFrame):
 
 def get_cluster_overlap(annotated_PPIN: pd.DataFrame):
     print("="*20, "Get cluster overlap", "="*20)
-    annotated_PPIN['cluster_overlap'] = (annotated_PPIN['cluster_1'] == annotated_PPIN['cluster_2']).astype(int)
+    annotated_PPIN['cluster_overlap'] = (annotated_PPIN['cluster_1'] == annotated_PPIN['cluster_2']).astype('category')
     return annotated_PPIN
 
 def get_binding_time_difference(annotated_PPIN: pd.DataFrame):

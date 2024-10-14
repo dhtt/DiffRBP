@@ -1,0 +1,35 @@
+import os 
+import pandas as pd
+from utilities import *
+
+configfile: "PPIN_vs_binding_time/config_PPIN_vs_binding_time.yaml"
+
+PPIXPRESS_RESULT_PATH = config['PPIXpress_result_path']
+TISSUE_LIST = os.listdir(PPIXPRESS_RESULT_PATH)
+RESULT_PATH = config['result_path']
+MRNP_CHRONO_PATH = config['mRNP_chronology_table_path']
+
+rule all:
+    input:
+        expand( RESULT_PATH + "/cluster_and_binding_time_difference/{TISSUE_LIST}.png", TISSUE_LIST=TISSUE_LIST)
+    run:
+        print(input)
+
+rule get_plots:
+    input:
+        annotated_PPIN_path=lambda wildcards: RESULT_PATH + "/annotated_PPIN/" + wildcards.TISSUE_LIST
+    output:
+        plot_path=RESULT_PATH + "/cluster_and_binding_time_difference/{TISSUE_LIST}.png"
+    run:
+        shell(f"PPIN_vs_binding_time/analyze_bulk.py --PPIN_path {input.annotated_PPIN_path} --plot_path {output.plot_path}")
+        
+
+rule annotate_PPIN_by_mRNP_chronology:
+    input:
+        PPIN_path=lambda wildcards: PPIXPRESS_RESULT_PATH + "/" + wildcards.TISSUE_LIST,
+        mRNP_chronology_table_path=MRNP_CHRONO_PATH
+    output:
+        annotated_PPIN_path=directory(RESULT_PATH + "/annotated_PPIN/{TISSUE_LIST}")
+    run:
+        shell(f"PPIN_vs_binding_time/prepare_data.py --PPIN_path {input.PPIN_path} --mRNP_chronology_table_path {input.mRNP_chronology_table_path} --result_path {output.annotated_PPIN_path}")
+        

@@ -1,0 +1,6 @@
+PPIXpress_result_path: "../data/RBP2GO_snakemake/PPIXpress"
+PPIXpress_options: "-tp=0.9 -u -elm -n -d -m -w -u"
+
+PPICompare_jar: "../../tools/PPICompare/PPICompare.jar"
+PPICompare_result_path: "../data/RBP2GO_snakemake/PPICompare"
+PPICompare_options: "-fdr=1.0"

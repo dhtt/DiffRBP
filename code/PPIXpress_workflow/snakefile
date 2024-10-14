@@ -1,0 +1,59 @@
+import pandas as pd
+import os
+from utilities import *
+
+configfile: "PPIXpress_workflow/config.yaml"
+
+DATA_DIR = config['data_dir']
+MRNA_DATA =  config['epispliced_dir']
+REFGEN_PATH = config['refgen_path']
+SAMPLE_NAME = config['sample_name']
+SAMPLE_df = pd.read_csv(SAMPLE_NAME, sep="\t", header=0)
+TISSUE_LIST = set([x.split("_")[0] for x in SAMPLE_df.SAMPLE_ID.tolist()])
+
+PPIXPRESS_JAR =  config['PPIXpress_jar']
+PPIXPRESS_RESULT_PATH =  config['PPIXpress_result_path']
+PPIXPRESS_OPTIONS = config['PPIXpress_options']
+PPIXPRESS_REF_PPIN = config['PPIXpress_reference_PPIN']
+
+rule all:
+	input:
+		grouped_PPIN=expand(PPIXPRESS_RESULT_PATH + "/{TISSUE_LIST}", TISSUE_LIST=TISSUE_LIST)
+	log:
+		"logs/pipeline.log"
+
+
+rule group_PPIN:
+	input:
+		matching_files=PPIXPRESS_RESULT_PATH + "/temp/matching_files.txt",
+		PPIXpress_options=PPIXPRESS_OPTIONS,
+		temp_dir=PPIXPRESS_RESULT_PATH + "/temp"
+	output:
+		grouped_PPIN=directory(PPIXPRESS_RESULT_PATH + "/{TISSUE_LIST}")
+	run:
+		PPIN_files = get_tissues(input.matching_files, input.PPIXpress_options)
+		PPIN_files.apply(lambda x: move_file(input.temp_dir, PPIXPRESS_RESULT_PATH + "/" + x["tissue"], x["ppin_file"], x["ddin_file"], x["major_transcripts_file"]), axis=1)
+		move_file(input.temp_dir, PPIXPRESS_RESULT_PATH, "matching_files.txt")
+
+rule PPIXpress:
+	input:
+		expression_files=expand("{MRNA_DATA}/htseq_count/{COUNT_FILE}.txt", MRNA_DATA=MRNA_DATA, COUNT_FILE=SAMPLE_df.SAMPLE_ID.tolist()),
+		reference_ppin=PPIXPRESS_REF_PPIN
+	output:
+		temp_dir=temp(directory(PPIXPRESS_RESULT_PATH + "/temp")),
+		matching_files=PPIXPRESS_RESULT_PATH + "/temp/matching_files.txt"
+	run:
+		if not os.path.exists(output.temp_dir):
+			os.mkdir(output.temp_dir)
+		log_file = os.path.join(PPIXPRESS_RESULT_PATH, "log.txt")
+		shell(f"java -jar {PPIXPRESS_JAR} {PPIXPRESS_OPTIONS} {input.reference_ppin} {output.temp_dir} {input.expression_files}")
+
+  
+rule htseq_count:
+	input:
+		refgen=REFGEN_PATH,
+		bam_file=lambda w: MRNA_DATA + "/raw_data/%s.bam" % (SAMPLE_df.ENCODE_ID[SAMPLE_df.SAMPLE_ID == w.COUNT_FILE].tolist()[0])
+	output:
+		MRNA_DATA + "/htseq_count/{COUNT_FILE}.txt"
+	run:
+		shell(f"htseq-count --format=bam --idattr=transcript_id {input.bam_file} {input.refgen} > {output}")
