@@ -2,11 +2,12 @@
 
 from os import path
 import subprocess
+import pandas as pd
 
-def get_tissues(matching_files, PPICompare_options):
+def get_tissues(matching_files, PPIXpress_options):
 	matching_df = pd.read_csv(matching_files, sep=" ", header=None)
-	if "-d" in PPICompare_options:
-		if "-m" in PPICompare_options:
+	if "-d" in PPIXpress_options:
+		if "-m" in PPIXpress_options:
 			matching_df.columns = ["count_file", "ppin_file", "ddin_file", "major_transcripts_file"]
 		else:
 			matching_df.columns = ["count_file", "ppin_file", "ddin_file"]

@@ -32,7 +32,7 @@ if __name__ == '__main__':
     ax3.set_title('Binding time difference')
     ax3.set_xlabel('Samples')
     ax3.set_ylabel('Binding time difference (min)')
-    ax3.set_ylim(0, 100)
+    ax3.set_ylim(0, 250)
     # legend = ax3.get_legend()
     # handles = legend.legend_handles
     # ax3.legend(handles, ['Non-PPIN', 'PPIN'], title='')

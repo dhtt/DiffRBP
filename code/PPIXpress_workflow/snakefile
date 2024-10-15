@@ -1,6 +1,6 @@
 import pandas as pd
-import os
-from utilities import *
+from os import path
+import subprocess 
 
 configfile: "PPIXpress_workflow/config.yaml"
 
@@ -15,6 +15,27 @@ PPIXPRESS_JAR =  config['PPIXpress_jar']
 PPIXPRESS_RESULT_PATH =  config['PPIXpress_result_path']
 PPIXPRESS_OPTIONS = config['PPIXpress_options']
 PPIXPRESS_REF_PPIN = config['PPIXpress_reference_PPIN']
+
+
+def get_tissues(matching_files, PPIXpress_options):
+	matching_df = pd.read_csv(matching_files, sep=" ", header=None)
+	if "-d" in PPIXpress_options:
+		if "-m" in PPIXpress_options:
+			matching_df.columns = ["count_file", "ppin_file", "ddin_file", "major_transcripts_file"]
+		else:
+			matching_df.columns = ["count_file", "ppin_file", "ddin_file"]
+	else:
+		matching_df.columns = ["count_file", "ppin_file"]
+    
+	matching_df['tissue'] = matching_df['count_file'].apply(lambda x: x.split("/")[-1].split("_")[0])
+	return matching_df
+
+def move_file(old_dir: str, new_dir: str, *args):
+	if not path.exists(new_dir):
+		subprocess(f"mkdir -p {new_dir}")
+	for file in args:
+		if path.exists(f"{old_dir}/{file}"):
+			subprocess(f"cp {old_dir}/{file} {new_dir}")
 
 rule all:
 	input:

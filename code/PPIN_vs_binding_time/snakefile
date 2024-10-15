@@ -1,8 +1,7 @@
 import os 
 import pandas as pd
-from utilities import *
 
-configfile: "PPIN_vs_binding_time/config_PPIN_vs_binding_time.yaml"
+configfile: "PPIN_vs_binding_time/config.yaml"
 
 PPIXPRESS_RESULT_PATH = config['PPIXpress_result_path']
 TISSUE_LIST = os.listdir(PPIXPRESS_RESULT_PATH)

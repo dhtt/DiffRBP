@@ -1,0 +1,1 @@
+cat ../data/mRNP_chrono/mRNP_interactions.csv | tr  '\t' ',' | tr ' ' '_' | tr ',' ' ' | awk '{print $1, $2, $5}' > ../data/mRNP_chrono/mRNP_ppin.txt
