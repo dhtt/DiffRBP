@@ -22,7 +22,7 @@ if __name__ == '__main__':
     path_to_sample_PPIN = [file for file in os.listdir(PPIN_path) if file.startswith("annotated_")]
     tissue_specific_PPIN = [pd.read_csv(os.path.join(PPIN_path, x), sep='\t') for x in path_to_sample_PPIN]
     tissue_specific_PPIN = pd.concat(tissue_specific_PPIN)
-
+    tissue_specific_PPIN = tissue_specific_PPIN.query('compartment_overlap > 0')
     
     fig = plt.figure(figsize=(8, 6)) 
     

@@ -4,3 +4,6 @@ PPIXpress_options: "-tp=0.9 -u -elm -n -d -m -w -u"
 PPICompare_jar: "../../tools/PPICompare/PPICompare.jar"
 PPICompare_result_path: "../data/RBP2GO_snakemake/PPICompare"
 PPICompare_options: "-fdr=1.0"
+
+# PPICompare_group_1: "CD4 CD8"
+# PPICompare_group_2: "ectodermal neuronal"

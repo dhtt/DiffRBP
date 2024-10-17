@@ -33,16 +33,17 @@ rule PPICompare:
 		PPIN_1 = PPIXPRESS_RESULT_PATH + "/" + tissue_1
 		PPIN_2 = PPIXPRESS_RESULT_PATH + "/" + tissue_2
 		shell(f"java -jar {PPICOMPARE_JAR} {PPICOMPARE_OPTIONS} {PPIN_1} {PPIN_2} {output.PPICompare_results}")
+
+rule PPICompare:
+	input:
+		PPIXpress_result_path=PPIXPRESS_RESULT_PATH
+	output:
+		PPICompare_results=directory(PPICOMPARE_RESULT_PATH + '/{TISSUE_COMBINATION}')
+	run:
+		tissue_1 = wildcards.TISSUE_COMBINATION.split("_")[0]
+		tissue_2 = wildcards.TISSUE_COMBINATION.split("_")[1]
+
+		PPIN_1 = PPIXPRESS_RESULT_PATH + "/" + tissue_1
+		PPIN_2 = PPIXPRESS_RESULT_PATH + "/" + tissue_2
+		shell(f"java -jar {PPICOMPARE_JAR} {PPICOMPARE_OPTIONS} {PPIN_1} {PPIN_2} {output.PPICompare_results}")
 			
-# rule PPIXpress:
-# 	input:
-# 		expression_files=expand("{MRNA_DATA}/htseq_count/{COUNT_FILE}.txt", MRNA_DATA=MRNA_DATA, COUNT_FILE=SAMPLE_df.SAMPLE_ID.tolist()),
-# 		reference_ppin=PPICOMPARE_REF_PPIN
-# 	output:
-# 		temp_dir=temp(directory(PPICOMPARE_DIR + "/temp")),
-# 		matching_files=PPICOMPARE_DIR + "/temp/matching_files.txt"
-# 	run:
-# 		if not os.path.exists(output.temp_dir):
-# 			os.mkdir(output.temp_dir)
-# 		log_file = os.path.join(PPICOMPARE_DIR, "log.txt")
-# 		shell(f"java -jar {PPICOMPARE_JAR} {PPICOMPARE_OPTIONS} {input.reference_ppin} {output.temp_dir} {input.expression_files}")
